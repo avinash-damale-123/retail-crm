@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  fullName        String
+  isActive        Boolean   @default(true)
+  roleId          String
+  branchId        String
+  departmentId    String?
+  permissionSetId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  role          Role          @relation(fields: [roleId], references: [id])
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  department    Department?   @relation(fields: [departmentId], references: [id])
+  permissionSet PermissionSet? @relation(fields: [permissionSetId], references: [id])
+  leads         Lead[]
+  auditLogs     AuditLog[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model PermissionSet {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  regions Region[]
+}
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String
+  countryId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country  Country? @relation(fields: [countryId], references: [id])
+  branches Branch[]
+
+  @@unique([name, countryId])
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  regionId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  region      Region?      @relation(fields: [regionId], references: [id])
+  users       User[]
+  departments Department[]
+  leads       Lead[]
+  customers   Customer[]
+  bookings    Booking[]
+
+  @@unique([name, regionId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  branchId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branch Branch @relation(fields: [branchId], references: [id])
+  users  User[]
+
+  @@unique([name, branchId])
+}
+
+model Lead {
+  id            String   @id @default(cuid())
+  leadNumber    String   @unique
+  fullName      String
+  phone         String
+  email         String?
+  status        String   @default("new")
+  ownerId       String
+  branchId      String
+  customerId    String?  @unique
+  convertedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  owner    User      @relation(fields: [ownerId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  customer Customer?
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  fullName   String
+  phone      String
+  email      String?
+  leadId     String   @unique
+  branchId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lead     Lead      @relation(fields: [leadId], references: [id])
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  bookings Booking[]
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  bookingCode String   @unique
+  customerId  String
+  branchId    String
+  status      String   @default("draft")
+  amount      Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  entityType  String
+  entityId    String
+  action      String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor User @relation(fields: [actorUserId], references: [id])
+}
